@@ -4,6 +4,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -28,30 +29,31 @@ public class VerificationService {
 	 @Autowired
 	 private RestTemplate restTemplate;
 	 
-	 @Value("file.storage.url.local")
-	 private String localStorageUrl;
+	 @Value("${file.storage.url.local}")
+	 private String localStorageUrl="";
 	 
 	 @Value("${customerServiceUrl}")
 	 private String customerServiceUrl;
 	 
-	 private final long verificationScheduledRate=60000;
+	 private final long verificationScheduledRate=30;
 	 
-	 private final Path root = Paths.get("D:\\training\\eclipse workspaces\\Doc checker\\uploads");
+	 private Path root = Paths.get(localStorageUrl);
 	 
-	 @Scheduled(fixedRate=verificationScheduledRate)
+	 @Scheduled(fixedRate=verificationScheduledRate,timeUnit = TimeUnit.MINUTES)
 	 public void verificationTask() {
+		 root = Paths.get(localStorageUrl);
 		 List<CustomerDto> updatedCustomers= RunVerification();
 		 updateVerificationStatus(updatedCustomers);
 	 }
 	 
-		public List<CustomerDto> RunVerification() {
+		private List<CustomerDto> RunVerification() {
 			List<CustomerDto> customersToVerify = getCustomerToVerify();
 			for(CustomerDto customer: customersToVerify) {
 				verifyCustomer(customer);
 			}
 			return customersToVerify;
 		}
-	public List<CustomerDto> getCustomerToVerify() {
+		private List<CustomerDto> getCustomerToVerify() {
 	final String customerDocApi = customerServiceUrl + "/customer/toVerify";
 		 List<CustomerDto> resultList= restTemplate.getForObject(customerDocApi, List.class);
 		 ObjectMapper mapper= new ObjectMapper();
@@ -60,7 +62,7 @@ public class VerificationService {
 	
 
 	
-	public CustomerDto verifyCustomer(CustomerDto customer) {
+		private CustomerDto verifyCustomer(CustomerDto customer) {
 		if(!customer.getDocumentList().isEmpty()) {
 			for(DocumentDto doc: customer.getDocumentList()) {
 				String docText=extractNameInDoc(doc.getFileName());
